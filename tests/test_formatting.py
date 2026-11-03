@@ -72,10 +72,13 @@ def test_paginate_text():
     text = "a" * 100
     page = paginate_text(text, offset=0, max_chars=40)
     assert page.startswith("a" * 40)
+    assert "第 1–40 字" in page
     assert "offset=40" in page
     second = paginate_text(text, offset=40, max_chars=40)
+    assert "第 41–80 字" in second
     assert "offset=80" in second
     last = paginate_text(text, offset=80, max_chars=40)
+    assert "第 81–100 字" in last
     assert "共 100 字" in last
 
 
@@ -117,3 +120,43 @@ def test_redact_masks_tokens(text):
 
 def test_redact_keeps_plain_text():
     assert redact("hello world") == "hello world"
+
+
+def _capture_log(logger_name: str):
+    import io
+    import logging
+
+    from moodle_mcp.errors import RedactingFilter
+
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+    handler.addFilter(RedactingFilter())
+    logger = logging.getLogger(logger_name)
+    logger.handlers = [handler]
+    logger.propagate = False
+    logger.setLevel(logging.DEBUG)
+    return logger, stream
+
+
+def test_redacting_filter_masks_exception_args_and_traceback():
+    logger, stream = _capture_log("moodle_mcp.test_redact")
+    exc = ValueError("bad https://x/webservice/pluginfile.php/1?token=SECRET123")
+
+    logger.error("錯誤：%s", exc)
+    try:
+        raise exc
+    except ValueError:
+        logger.exception("例外 %s", "wstoken=SECRET456")
+
+    output = stream.getvalue()
+    assert "SECRET123" not in output
+    assert "SECRET456" not in output
+    assert "token=***" in output
+    assert "Traceback" in output  # traceback 仍保留，只是遮罩過
+
+
+def test_redacting_filter_keeps_non_string_args():
+    logger, stream = _capture_log("moodle_mcp.test_redact_args")
+    logger.info("第 %d 次，共 %s 筆", 3, 10)
+    assert "第 3 次，共 10 筆" in stream.getvalue()

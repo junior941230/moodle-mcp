@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import getpass
+import os
 import sys
 from pathlib import Path
 
@@ -68,6 +69,19 @@ def upsert_env(path: Path, updates: dict[str, str]) -> None:
             output.append(f"{key}={value}")
 
     path.write_text("\n".join(output).rstrip() + "\n", encoding="utf-8")
+    restrict_permissions(path)
+
+
+def restrict_permissions(path: Path) -> None:
+    """把 .env 權限設為只有自己可讀寫（0600）。
+
+    POSIX 預設 umask 下新檔案是 0644，同機其他使用者讀得到 token。
+    Windows 的 chmod 只影響唯讀旗標，這裡設 0600 等於「可讀寫」，不會有副作用。
+    """
+    try:
+        os.chmod(path, 0o600)
+    except OSError as exc:
+        print(f"警告：無法限制 {path.name} 的檔案權限（{exc.__class__.__name__}）", file=sys.stderr)
 
 
 def mask(token: str) -> str:

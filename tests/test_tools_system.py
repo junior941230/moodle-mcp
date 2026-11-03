@@ -6,6 +6,7 @@ import pytest
 from conftest import load_fixture
 
 from moodle_mcp.cache import get_cache, lookup_file, register_file_id
+from moodle_mcp.config import get_settings
 from moodle_mcp.tools.system import clear_cache, notifications
 
 
@@ -42,13 +43,18 @@ async def test_clear_cache(api):
         url="https://moodle.example.edu/pluginfile.php/1/a.txt",
         filename="a.txt",
     )
+    downloads = get_settings().downloads_dir
+    (downloads / "aaaabbbbcccc.pdf").write_bytes(b"%PDF")
+    (downloads / "ddddeeeeffff.txt.part").write_bytes(b"partial")
     assert get_cache().get("api:dummy:key") is not None
     assert lookup_file("aaaabbbbcccc") is not None
 
     result = await clear_cache()
     assert "已清除" in result
+    assert "2 個殘留的下載檔" in result
     assert get_cache().get("api:dummy:key") is None
     assert lookup_file("aaaabbbbcccc") is None
+    assert list(downloads.iterdir()) == []
 
 
 def test_all_tools_registered():
