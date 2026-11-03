@@ -145,7 +145,7 @@ async def get_discussion(discussion_id: int) -> str:
         discussion_id: 討論串 id（由 list_announcements 或其他工具取得）。
 
     Returns:
-        標題、每則貼文的作者、時間、內文（markdown）與附件 file_id。
+        標題、每則貼文的作者、時間、post_id、內文（markdown）與附件 file_id。
         附件可用 read_file(file_id) 讀取。
     """
     data = await get_client().call(
@@ -172,6 +172,7 @@ async def get_discussion(discussion_id: int) -> str:
     for index, post in enumerate(posts, start=1):
         author = (post.get("author") or {}).get("fullname") or "（未知作者）"
         lines.append(f"## {index}. {author}（{format_ts(post.get('created'))}）")
+        lines.append(f"- post_id：{post.get('id')}")
         lines.append("")
         message = html_to_markdown(post.get("message") or "")
         lines.append(message or "（沒有內容）")
@@ -183,9 +184,70 @@ async def get_discussion(discussion_id: int) -> str:
     return truncate_output("\n".join(lines).rstrip(), 12000)
 
 
+_FORUM_TYPES = {
+    "news": "公告",
+    "general": "一般討論",
+    "single": "單一討論",
+    "eachuser": "每人一則",
+    "qanda": "問與答",
+    "blog": "部落格格式",
+}
+
+
+async def find_forum(forum_id: int) -> dict[str, Any] | None:
+    """在所有已選課程的討論區中找 forum_id。"""
+    from ._common import fetch_all_courses
+
+    courses = await fetch_all_courses()
+    course_ids = [parse_int(c.get("id")) for c in courses if parse_int(c.get("id"))]
+    if not course_ids:
+        return None
+    for forum in await _fetch_forums(course_ids):
+        if parse_int(forum.get("id")) == int(forum_id):
+            return forum
+    return None
+
+
+@tool_guard
+async def list_forums(course_id: int) -> str:
+    """列出某門課的所有討論區（含公告區）。
+
+    Args:
+        course_id: 課程 id（由 list_courses 取得）。
+
+    Returns:
+        markdown 表格：forum_id、名稱、類型。
+        想看某個討論區的討論串可用 list_announcements（公告區）或 get_discussion。
+    """
+    forums = [
+        forum
+        for forum in await _fetch_forums([int(course_id)])
+        if parse_int(forum.get("course")) == int(course_id)
+    ]
+    if not forums:
+        return f"（course_id={course_id} 沒有討論區）"
+
+    from ..formatting import md_table
+
+    rows = []
+    for forum in forums:
+        forum_type = str(forum.get("type") or "")
+        can_post = forum.get("cancreatediscussions")
+        rows.append(
+            [
+                parse_int(forum.get("id")),
+                html_to_plain(str(forum.get("name") or "")) or "（未命名）",
+                _FORUM_TYPES.get(forum_type, forum_type or "—"),
+                "—" if can_post is None else ("可" if can_post else "不可"),
+            ]
+        )
+    table = md_table(["forum_id", "名稱", "類型", "可發新討論"], rows)
+    return f"# 討論區（course_id={course_id}）\n\n{table}"
+
+
 def register(mcp: Any) -> None:
-    for tool in (list_announcements, get_discussion):
+    for tool in (list_announcements, get_discussion, list_forums):
         mcp.add_tool(tool)
 
 
-__all__ = ["list_announcements", "get_discussion", "register"]
+__all__ = ["find_forum", "get_discussion", "list_announcements", "list_forums", "register"]

@@ -71,6 +71,7 @@ def test_all_tools_registered():
         "upcoming_deadlines",
         "list_announcements",
         "get_discussion",
+        "list_forums",
         "get_grades",
         "read_file",
         "notifications",
@@ -79,6 +80,14 @@ def test_all_tools_registered():
     assert expected <= set(tools)
     for name in expected:
         assert tools[name].description, f"{name} 缺少 docstring"
+
+
+def test_no_write_tools_registered_by_default():
+    from moodle_mcp.server import mcp
+    from moodle_mcp.tools.write import WRITE_TOOLS
+
+    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
+    assert not registered & {tool.__name__ for tool, _, _ in WRITE_TOOLS}
 
 
 @pytest.mark.asyncio
