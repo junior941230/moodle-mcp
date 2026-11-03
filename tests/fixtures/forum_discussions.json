@@ -1,0 +1,33 @@
+{
+  "discussions": [
+    {
+      "id": 501,
+      "discussion": 501,
+      "name": "期中考範圍",
+      "subject": "期中考範圍",
+      "userid": 7,
+      "userfullname": "Teacher A",
+      "created": 1767225600,
+      "modified": 1767225600,
+      "message": "<p>期中考涵蓋第 1–6 週，請準備鏈結串列與樹。</p>",
+      "numreplies": 1,
+      "pinned": 0,
+      "locked": 0
+    },
+    {
+      "id": 502,
+      "discussion": 502,
+      "name": "作業上傳問題",
+      "subject": "作業上傳問題",
+      "userid": 8,
+      "userfullname": "Student B",
+      "created": 1767139200,
+      "modified": 1767139200,
+      "message": "<p>PDF 上傳一直失敗。</p>",
+      "numreplies": 0,
+      "pinned": 0,
+      "locked": 0
+    }
+  ],
+  "warnings": []
+}

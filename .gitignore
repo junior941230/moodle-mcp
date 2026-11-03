@@ -1,0 +1,27 @@
+# 祕密與本機設定
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# 測試與工具
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# 編輯器 / 作業系統
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

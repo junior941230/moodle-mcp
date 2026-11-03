@@ -1,0 +1,66 @@
+{
+  "courses": [
+    {
+      "id": 101,
+      "fullname": "資料結構與演算法",
+      "shortname": "CS2001",
+      "assignments": [
+        {
+          "id": 201,
+          "cmid": 1201,
+          "course": 101,
+          "name": "作業 1：鏈結串列",
+          "nosubmissions": 0,
+          "submissiondrafts": 1,
+          "sendnotifications": 0,
+          "duedate": 2000000000,
+          "allowsubmissionsfromdate": 1764547200,
+          "cutoffdate": 2000200000,
+          "gradingduedate": 2000300000,
+          "intro": "<p>請實作單向鏈結串列的 <b>insert / delete / reverse</b>。</p><ul><li>需通過所有測資</li><li>上傳 PDF 報告</li></ul>",
+          "introformat": 1,
+          "introattachments": [
+            {
+              "filename": "spec.pdf",
+              "filepath": "/",
+              "filesize": 51200,
+              "fileurl": "https://moodle.example.edu/pluginfile.php/601/mod_assign/intro/spec.pdf",
+              "timemodified": 1764547200,
+              "mimetype": "application/pdf"
+            }
+          ]
+        },
+        {
+          "id": 202,
+          "cmid": 1202,
+          "course": 101,
+          "name": "作業 0：暖身",
+          "duedate": 1000000000,
+          "allowsubmissionsfromdate": 900000000,
+          "cutoffdate": 1000100000,
+          "intro": "<p>暖身作業，已繳交。</p>",
+          "introattachments": []
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "fullname": "作業系統",
+      "shortname": "CS3002",
+      "assignments": [
+        {
+          "id": 203,
+          "cmid": 1301,
+          "course": 102,
+          "name": "作業 2：排程模擬",
+          "duedate": 2000100000,
+          "allowsubmissionsfromdate": 1764547200,
+          "cutoffdate": 2000200000,
+          "intro": "<p>模擬 FCFS / SJF / RR。</p>",
+          "introattachments": []
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

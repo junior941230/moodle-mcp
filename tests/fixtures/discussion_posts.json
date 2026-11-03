@@ -1,0 +1,48 @@
+{
+  "posts": [
+    {
+      "id": 601,
+      "discussion": 501,
+      "parent": 0,
+      "userid": 7,
+      "created": 1767225600,
+      "modified": 1767225600,
+      "mailed": 0,
+      "subject": "期中考範圍",
+      "message": "<p>期中考涵蓋第 1–6 週，請準備<b>鏈結串列</b>與樹。</p>",
+      "author": {
+        "id": 7,
+        "fullname": "Teacher A",
+        "url": "https://moodle.example.edu/user/view.php?id=7"
+      },
+      "attachments": [
+        {
+          "filename": "review.pdf",
+          "filepath": "/",
+          "filesize": 30720,
+          "fileurl": "https://moodle.example.edu/pluginfile.php/701/mod_forum/attachment/601/review.pdf",
+          "timemodified": 1767225600,
+          "mimetype": "application/pdf"
+        }
+      ]
+    },
+    {
+      "id": 602,
+      "discussion": 501,
+      "parent": 601,
+      "userid": 42,
+      "created": 1767232800,
+      "modified": 1767232800,
+      "mailed": 0,
+      "subject": "Re: 期中考範圍",
+      "message": "<p>請問樹的平衡也會考嗎？</p>",
+      "author": {
+        "id": 42,
+        "fullname": "Test User",
+        "url": "https://moodle.example.edu/user/view.php?id=42"
+      },
+      "attachments": []
+    }
+  ],
+  "warnings": []
+}

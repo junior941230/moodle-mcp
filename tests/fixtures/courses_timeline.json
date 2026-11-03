@@ -1,0 +1,26 @@
+{
+  "courses": [
+    {
+      "id": 101,
+      "fullname": "資料結構與演算法",
+      "shortname": "CS2001",
+      "displayname": "資料結構與演算法",
+      "progress": 62.5,
+      "lastaccess": 1767225600,
+      "startdate": 1764547200,
+      "enddate": 2000000000,
+      "visible": 1
+    },
+    {
+      "id": 102,
+      "fullname": "作業系統",
+      "shortname": "CS3002",
+      "progress": 38.0,
+      "lastaccess": 1767139200,
+      "startdate": 1764547200,
+      "enddate": 2000000000,
+      "visible": 1
+    }
+  ],
+  "nextoffset": null
+}

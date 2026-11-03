@@ -1,0 +1,26 @@
+{
+  "notifications": [
+    {
+      "id": 901,
+      "useridfrom": 7,
+      "useridto": 42,
+      "subject": "作業 1 已評分",
+      "text": "您的作業 1 已評分",
+      "fullmessage": "<p>您的作業 1 已評分，成績 88 分。</p>",
+      "fullmessageformat": 1,
+      "timecreated": 1767225600,
+      "read": false
+    },
+    {
+      "id": 902,
+      "useridfrom": 7,
+      "useridto": 42,
+      "subject": "新公告：期中考範圍",
+      "text": "課程新增公告",
+      "fullmessage": "<p>期中考涵蓋第 1–6 週。</p>",
+      "fullmessageformat": 1,
+      "timecreated": 1767139200,
+      "read": true
+    }
+  ]
+}

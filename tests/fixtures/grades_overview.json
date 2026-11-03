@@ -1,0 +1,19 @@
+{
+  "grades": [
+    {
+      "courseid": 101,
+      "courseidnumber": "CS2001",
+      "grade": "86.50",
+      "rawgrade": "86.50",
+      "rank": 5
+    },
+    {
+      "courseid": 102,
+      "courseidnumber": "CS3002",
+      "grade": "78.00",
+      "rawgrade": "78.00",
+      "rank": 12
+    }
+  ],
+  "warnings": []
+}

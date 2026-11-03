@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "id": 301,
+      "name": "作業 1：鏈結串列",
+      "description": "<p>記得繳交 PDF 報告</p>",
+      "timestart": 2000000000,
+      "timeduration": 0,
+      "course": {
+        "id": 101,
+        "fullname": "資料結構與演算法",
+        "shortname": "CS2001"
+      },
+      "modulename": "assign",
+      "eventtype": "due",
+      "url": "https://moodle.example.edu/mod/assign/view.php?id=1201",
+      "actionname": "view"
+    },
+    {
+      "id": 302,
+      "name": "小考 1",
+      "timestart": 2000100000,
+      "timeduration": 3600,
+      "course": {
+        "id": 101,
+        "fullname": "資料結構與演算法",
+        "shortname": "CS2001"
+      },
+      "modulename": "quiz",
+      "eventtype": "open",
+      "url": "https://moodle.example.edu/mod/quiz/view.php?id=1104"
+    }
+  ]
+}

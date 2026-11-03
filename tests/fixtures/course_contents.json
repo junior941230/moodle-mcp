@@ -1,0 +1,110 @@
+[
+  {
+    "id": 1,
+    "name": "課程簡介",
+    "visible": 1,
+    "summary": "<p>本課程介紹資料結構與演算法。</p>",
+    "summaryformat": 1,
+    "section": 0,
+    "modules": [
+      {
+        "id": 11,
+        "cmid": 1101,
+        "name": "課程大綱",
+        "modname": "resource",
+        "description": "<p>PDF 版課程大綱</p>",
+        "visible": 1,
+        "contents": [
+          {
+            "type": "file",
+            "filename": "syllabus.pdf",
+            "filepath": "/",
+            "filesize": 204800,
+            "fileurl": "https://moodle.example.edu/pluginfile.php/501/mod_resource/content/1/syllabus.pdf",
+            "timecreated": 1764547200,
+            "timemodified": 1764547200,
+            "mimetype": "application/pdf",
+            "isexternalfile": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "第 1 週：陣列與鏈結串列",
+    "visible": 1,
+    "summary": "<p>陣列、鏈結串列的<b>時間複雜度</b>比較。</p>",
+    "summaryformat": 1,
+    "section": 1,
+    "modules": [
+      {
+        "id": 12,
+        "cmid": 1102,
+        "name": "Week 1 講義",
+        "modname": "resource",
+        "description": "",
+        "visible": 1,
+        "contents": [
+          {
+            "type": "file",
+            "filename": "week1.pdf",
+            "filepath": "/",
+            "filesize": 1048576,
+            "fileurl": "https://moodle.example.edu/pluginfile.php/502/mod_resource/content/1/week1.pdf",
+            "timecreated": 1764547200,
+            "timemodified": 1764806400,
+            "mimetype": "application/pdf",
+            "isexternalfile": false
+          },
+          {
+            "type": "file",
+            "filename": "week1-slides.pptx",
+            "filepath": "/",
+            "filesize": 2097152,
+            "fileurl": "https://moodle.example.edu/pluginfile.php/503/mod_resource/content/1/week1-slides.pptx",
+            "timecreated": 1764547200,
+            "timemodified": 1764806400,
+            "mimetype": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "isexternalfile": false
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "cmid": 1103,
+        "name": "補充影片",
+        "modname": "url",
+        "description": "<p>外部 YouTube 影片</p>",
+        "visible": 1,
+        "contents": [
+          {
+            "type": "url",
+            "filename": "影片連結",
+            "filesize": 0,
+            "fileurl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "mimetype": "",
+            "isexternalfile": true
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "cmid": 1104,
+        "name": "小考 1",
+        "modname": "quiz",
+        "description": "<p>第 1 週小考</p>",
+        "visible": 1,
+        "contents": []
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "第 2 週：堆疊與佇列",
+    "visible": 1,
+    "summary": "",
+    "section": 2,
+    "modules": []
+  }
+]

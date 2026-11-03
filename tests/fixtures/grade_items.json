@@ -1,0 +1,49 @@
+{
+  "usergrades": [
+    {
+      "courseid": 101,
+      "userid": 42,
+      "userfullname": "Test User",
+      "maxdepth": 1,
+      "gradeitems": [
+        {
+          "id": 801,
+          "itemname": "作業 1：鏈結串列",
+          "itemtype": "mod",
+          "itemmodule": "assign",
+          "graderaw": 88,
+          "grademin": 0,
+          "grademax": 100,
+          "gradeformatted": "88.00",
+          "percentageformatted": "88.00 %",
+          "feedback": "<p>結構正確，但 reverse 沒有處理空鏈結串列。</p>"
+        },
+        {
+          "id": 802,
+          "itemname": "期中考",
+          "itemtype": "manual",
+          "itemmodule": "",
+          "graderaw": 72,
+          "grademin": 0,
+          "grademax": 100,
+          "gradeformatted": "72.00",
+          "percentageformatted": "72.00 %",
+          "feedback": "<p>第 4 題需再加強。</p>"
+        },
+        {
+          "id": 803,
+          "itemname": "課程總分",
+          "itemtype": "course",
+          "itemmodule": "",
+          "graderaw": 86.5,
+          "grademin": 0,
+          "grademax": 100,
+          "gradeformatted": "86.50",
+          "percentageformatted": "86.50 %",
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

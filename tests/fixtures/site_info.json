@@ -1,0 +1,30 @@
+{
+  "sitename": "Example Moodle (test)",
+  "username": "student",
+  "firstname": "Test",
+  "lastname": "User",
+  "fullname": "Test User",
+  "userid": 42,
+  "siteurl": "https://moodle.example.edu",
+  "release": "4.3.2 (Build: 20240101)",
+  "functions": [
+    {"name": "core_webservice_get_site_info", "version": "4.3"},
+    {"name": "core_enrol_get_users_courses", "version": "4.3"},
+    {"name": "core_course_get_enrolled_courses_by_timeline_classification", "version": "4.3"},
+    {"name": "core_course_get_contents", "version": "4.3"},
+    {"name": "mod_assign_get_assignments", "version": "4.3"},
+    {"name": "mod_assign_get_submission_status", "version": "4.3"},
+    {"name": "core_calendar_get_action_events_by_timesort", "version": "4.3"},
+    {"name": "core_calendar_get_calendar_upcoming_view", "version": "4.3"},
+    {"name": "mod_forum_get_forums_by_courses", "version": "4.3"},
+    {"name": "mod_forum_get_forum_discussions", "version": "4.3"},
+    {"name": "mod_forum_get_discussion_posts", "version": "4.3"},
+    {"name": "gradereport_user_get_grade_items", "version": "4.3"},
+    {"name": "gradereport_overview_get_course_grades", "version": "4.3"},
+    {"name": "mod_resource_get_resources_by_courses", "version": "4.3"},
+    {"name": "mod_page_get_pages_by_courses", "version": "4.3"},
+    {"name": "mod_url_get_urls_by_courses", "version": "4.3"},
+    {"name": "mod_quiz_get_quizzes_by_courses", "version": "4.3"},
+    {"name": "message_popup_get_popup_notifications", "version": "4.3"}
+  ]
+}

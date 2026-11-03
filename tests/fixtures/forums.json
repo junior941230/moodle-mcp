@@ -1,0 +1,29 @@
+[
+  {
+    "id": 401,
+    "course": 101,
+    "type": "news",
+    "name": "公告",
+    "intro": "<p>課程公告</p>",
+    "duedate": 0,
+    "timemodified": 1767225600
+  },
+  {
+    "id": 402,
+    "course": 101,
+    "type": "general",
+    "name": "一般討論區",
+    "intro": "<p>有問題在這裡問</p>",
+    "duedate": 0,
+    "timemodified": 1767225600
+  },
+  {
+    "id": 403,
+    "course": 102,
+    "type": "news",
+    "name": "公告",
+    "intro": "<p>課程公告</p>",
+    "duedate": 0,
+    "timemodified": 1767225600
+  }
+]

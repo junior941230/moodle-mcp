@@ -1,0 +1,35 @@
+{
+  "graded": true,
+  "feedback": {
+    "grade": {
+      "id": 9001,
+      "assignment": 201,
+      "userid": 42,
+      "attemptnumber": 0,
+      "timecreated": 1764806400,
+      "timemodified": 1764806400,
+      "grader": 7,
+      "grade": "88.00",
+      "graderaw": 88,
+      "grademin": 0,
+      "grademax": 100,
+      "gradeformatted": "88.00 / 100.00",
+      "feedback": "<p>結構正確，但 reverse 沒有處理空鏈結串列。</p>"
+    },
+    "plugins": []
+  },
+  "lastattempt": {
+    "submission": {
+      "id": 8001,
+      "assignment": 201,
+      "userid": 42,
+      "attemptnumber": 0,
+      "status": "submitted",
+      "timecreated": 1764800000,
+      "timemodified": 1764800000
+    },
+    "teamsubmission": null,
+    "submissiongroup": null
+  },
+  "submissionstatus": "submitted"
+}
