@@ -14,6 +14,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # src/moodle_mcp/config.py -> src/moodle_mcp -> src -> 專案根目錄
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+# 寫入功能：每一項都要在 .env 用獨立的 MOODLE_ALLOW_<名稱>=true 開啟，預設全部關閉。
+WRITE_FEATURES: dict[str, str] = {
+    "mark_read": "標記通知為已讀",
+    "save_submission": "儲存作業草稿（線上文字 / 上傳檔案）",
+    "submit_for_grading": "送出作業評分",
+    "forum_reply": "回覆討論串",
+    "forum_post": "在討論區發新討論",
+}
+
+
+def write_env_name(feature: str) -> str:
+    """寫入功能對應的環境變數名稱，例如 MOODLE_ALLOW_FORUM_POST。"""
+    return f"MOODLE_ALLOW_{feature.upper()}"
+
 
 @lru_cache(maxsize=1)
 def os_ssl_context() -> ssl.SSLContext | None:
@@ -55,6 +69,15 @@ class Settings(BaseSettings):
     # TLS：預設使用作業系統憑證庫；可指定自訂 CA，或在明確了解風險時關閉驗證
     moodle_tls_verify: bool = True
     moodle_ca_bundle: str | None = None
+
+    # 寫入功能（預設全部關閉；名稱需與 WRITE_FEATURES 一致）
+    moodle_allow_mark_read: bool = False
+    moodle_allow_save_submission: bool = False
+    moodle_allow_submit_for_grading: bool = False
+    moodle_allow_forum_reply: bool = False
+    moodle_allow_forum_post: bool = False
+    # 上傳作業檔案時，只允許這個資料夾（含子資料夾）裡的檔案；未設定就不能上傳檔案
+    moodle_upload_dir: str | None = None
 
     @field_validator("moodle_url")
     @classmethod
@@ -111,6 +134,15 @@ class Settings(BaseSettings):
             return str(Path(self.moodle_ca_bundle).expanduser())
         context = os_ssl_context()
         return context if context is not None else True
+
+    def write_enabled(self, feature: str) -> bool:
+        """某項寫入功能是否已在設定中開啟。"""
+        if feature not in WRITE_FEATURES:
+            return False
+        return bool(getattr(self, f"moodle_allow_{feature}", False))
+
+    def enabled_write_features(self) -> list[str]:
+        return [feature for feature in WRITE_FEATURES if self.write_enabled(feature)]
 
     def require_token(self) -> str:
         """回傳 token；未設定時給出可行動的錯誤。"""

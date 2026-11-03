@@ -36,7 +36,7 @@ async def notifications(limit: int = 20) -> str:
         limit: 最多顯示幾則（1–50，預設 20）。
 
     Returns:
-        每則通知的時間、主旨、是否已讀與摘要。
+        每則通知的時間、主旨、是否已讀、notification_id 與摘要。
     """
     limit = max(1, min(int(limit), 50))
     client = get_client()
@@ -58,7 +58,10 @@ async def notifications(limit: int = 20) -> str:
     for item in notifications_list:
         read_state = "已讀" if item.get("read") else "**未讀**"
         lines.append(f"### {item.get('subject') or '（無主旨）'}")
-        lines.append(f"- 時間：{format_ts(item.get('timecreated'))}　狀態：{read_state}")
+        lines.append(
+            f"- 時間：{format_ts(item.get('timecreated'))}　狀態：{read_state}"
+            f"　notification_id：{item.get('id')}"
+        )
         summary = html_to_plain(
             item.get("fullmessage") or item.get("text") or "", limit=200
         )

@@ -1,11 +1,12 @@
 # moodle-mcp
 
-本機執行、**唯讀**的 [MCP](https://modelcontextprotocol.io/) server，讓 Claude Code / Claude Desktop
+本機執行、**預設唯讀**的 [MCP](https://modelcontextprotocol.io/) server，讓 Claude Code / Claude Desktop
 可以查詢你自己的 Moodle：課程、教材、作業與截止日、公告、成績，並把 PDF / DOCX / PPTX
 教材轉成文字閱讀。
 
 - 全部走官方 Moodle Web Service API，不爬 HTML。
-- **沒有任何寫入功能**：不能交作業、發文、標記已讀或改設定。
+- **預設不能寫入**：標記已讀、存作業草稿、送出評分、回覆、發新討論，
+  每一項都要在 `.env` 單獨開啟，而且動手前會先請你確認（見[寫入功能](#寫入功能預設全部關閉)）。
 - Token 只存在本機 `.env`，不會出現在 log、工具輸出或 git。
 
 > 目標站台：`https://moodle.example.edu`（需已開啟 Mobile Web Service）
@@ -135,14 +136,49 @@ Token 由 server 從專案目錄的 `.env` 讀取，**不要**寫在上面的 co
 | `get_assignment(assign_id)` | 作業說明、附件、成績與評語 |
 | `upcoming_deadlines(days=14)` | 未來 N 天的截止日 / 事件 |
 | `list_announcements(course_id?, limit=10)` | 課程公告（討論區 type=news） |
-| `get_discussion(discussion_id)` | 整串討論 / 公告內容與附件 |
+| `get_discussion(discussion_id)` | 整串討論 / 公告內容、附件與每則的 `post_id` |
+| `list_forums(course_id)` | 某門課的所有討論區與 `forum_id` |
 | `get_grades(course_id?)` | 各課總成績或單課評分項目 |
 | `read_file(file_id, offset?, max_chars?)` | 讀取教材檔案並轉文字（可分頁） |
-| `notifications(limit=20)` | Moodle 通知（唯讀，不標記已讀） |
+| `notifications(limit=20)` | Moodle 通知與 `notification_id`（不會標記已讀） |
 | `clear_cache()` | 清除本機快取，強制更新 |
 
 另有 resources：`moodle://courses`、`moodle://course/{course_id}`，
 以及 prompt：`weekly_briefing`（本週待辦整理）。
+
+### 寫入功能（預設全部關閉）
+
+每一項都有自己的開關，沒開的工具**不會註冊**，Claude 完全看不到。
+
+| Tool | 開啟設定 | 動手前確認 |
+|---|---|---|
+| `mark_notifications_read(notification_id?, mark_all?)` | `MOODLE_ALLOW_MARK_READ=true` | 不需要（低風險） |
+| `save_assignment_draft(assign_id, text?, files?)` | `MOODLE_ALLOW_SAVE_SUBMISSION=true` | 需要 |
+| `submit_assignment_for_grading(assign_id, accept_statement?)` | `MOODLE_ALLOW_SUBMIT_FOR_GRADING=true` | 需要 |
+| `reply_to_discussion(discussion_id, message, post_id?, subject?)` | `MOODLE_ALLOW_FORUM_REPLY=true` | 需要 |
+| `create_discussion(forum_id, subject, message)` | `MOODLE_ALLOW_FORUM_POST=true` | 需要 |
+
+改完 `.env` 要重新啟動 server（重開 Claude Code / Claude Desktop）才會生效。
+
+**確認流程**
+
+- 用戶端支援 MCP elicitation（例如 Claude Code）時，server 會直接跳出確認視窗，
+  顯示要做的事（作業名稱、要上傳的檔案、要發的內容…），你勾選同意才會執行。
+  這個回答不經過 Claude，所以就算 Claude 被惡意內容誘導，也沒辦法替你按同意。
+- 不支援時，第一次呼叫只會回傳預覽和一組確認碼；Claude 必須把預覽給你看，
+  等你同意後再用**完全相同的參數**加上確認碼呼叫一次。確認碼 10 分鐘內有效、只能用一次，
+  參數有任何不同就會失效。這種模式下 Claude 技術上仍可能自己帶確認碼呼叫，
+  所以**請保留 Claude 的工具權限詢問，不要對寫入工具選「永遠允許」**。
+
+**作業相關注意事項**
+
+- `save_assignment_draft` 上傳的檔案會**取代**草稿中原本的所有檔案；線上文字也會被取代。
+- 有些作業沒有「送出評分」步驟，儲存就等同正式繳交。遇到這種作業時，
+  `save_assignment_draft` 還需要同時開啟 `MOODLE_ALLOW_SUBMIT_FOR_GRADING` 才能用，預覽也會特別標示。
+- 要求同意「繳交聲明」的作業，Claude 不能替你同意，必須由你本人看過聲明後同意。
+- 上傳檔案必須先設定 `MOODLE_UPLOAD_DIR`，只能上傳這個資料夾（含子資料夾）裡的檔案；
+  隱藏檔（例如 `.env`）和指向資料夾外的捷徑一律拒絕，避免 Claude 被誘導把私密檔案上傳出去。
+  建議專門建一個「要交的作業」資料夾，不要設成家目錄。
 
 ### 檔案讀取流程
 
@@ -176,6 +212,12 @@ Token 由 server 從專案目錄的 `.env` 讀取，**不要**寫在上面的 co
 | `MOODLE_LOG_LEVEL` | 否 | `INFO` | log 等級（一律寫 stderr） |
 | `MOODLE_TLS_VERIFY` | 否 | `true` | TLS 驗證；關閉僅供最後手段 |
 | `MOODLE_CA_BUNDLE` | 否 | — | 自訂 CA bundle 路徑（TLS 攔截環境用） |
+| `MOODLE_ALLOW_MARK_READ` | 否 | `false` | 允許標記通知為已讀 |
+| `MOODLE_ALLOW_SAVE_SUBMISSION` | 否 | `false` | 允許儲存作業草稿（線上文字 / 上傳檔案） |
+| `MOODLE_ALLOW_SUBMIT_FOR_GRADING` | 否 | `false` | 允許送出作業評分 |
+| `MOODLE_ALLOW_FORUM_REPLY` | 否 | `false` | 允許回覆討論串 |
+| `MOODLE_ALLOW_FORUM_POST` | 否 | `false` | 允許在討論區發新討論 |
+| `MOODLE_UPLOAD_DIR` | 否 | — | 上傳作業檔案時唯一允許的資料夾；不設定就不能上傳檔案 |
 
 > TLS 預設使用作業系統憑證庫（`truststore`）。某些學校憑證在 Python 內建 certifi
 > 下會出現 `CERTIFICATE_VERIFY_FAILED: Missing Subject Key Identifier`，改用
@@ -190,21 +232,27 @@ Token 由 server 從專案目錄的 `.env` 讀取，**不要**寫在上面的 co
 | 課程內容、作業清單 | 10 分鐘 |
 | 行事曆、公告 | 5 分鐘 |
 | 繳交狀態、成績 | 2 分鐘 |
-| 下載檔案 / 抽取文字 | 依 `timemodified`，有變才重抓 |
+| 教材抽取出的文字 | 依 `timemodified`，有變才重抓（檔案本體抽完就刪除） |
 
-快取 key 為 `wsfunction + 參數`，**不含 token**。
+快取 key 為 `wsfunction + 參數`，**不含 token**。任何寫入成功後都會清掉 API 快取，避免讀到舊狀態。
 
 ---
 
 ## 安全設計
 
 1. `MoodleClient.call()` 只允許白名單內的 18 個唯讀 wsfunction，其他一律拒絕（有單元測試）。
+   寫入只能走 `MoodleClient.write()`，只允許 6 個寫入 wsfunction，且對應的開關必須開啟；
+   沒開啟的寫入工具不會註冊，就算被呼叫也會在執行期再擋一次。
 2. Token 不出現在 stdout、log、例外訊息、tool 輸出或快取 key；例外與 log 都經過 `redact()`。
 3. `.env` 在 `.gitignore` 中，token 欄位 `repr=False`。
 4. `read_file` 只接受 `file_id`，且對應 URL 必須與 `MOODLE_URL` 同 host。
 5. 下載有大小上限；快取檔名只用 `file_id` + 安全副檔名，不用伺服器提供的檔名。
 6. log 一律寫 stderr（stdout 是 MCP stdio 通道）。
 7. 網路錯誤最多重試 3 次（0.5s / 1s / 2s），4xx 不重試；並以 semaphore 限流。
+   **寫入一律不重試**，避免網路不穩時重複發文或重複繳交。
+8. 除了標記已讀，所有寫入都要使用者確認（優先用 elicitation 直接問使用者），
+   寫入前會重新向 Moodle 取得最新狀態，不用快取。
+9. 上傳檔案限定在 `MOODLE_UPLOAD_DIR` 內，拒絕隱藏檔、跳出資料夾的捷徑與超過大小上限的檔案。
 
 ---
 
@@ -254,8 +302,12 @@ src/moodle_mcp/
 - **請遵守學校的使用規範**：使用前請確認你的學校 / 機構允許用 Web Service token
   搭配第三方工具存取 Moodle。token 等同你的登入身分，請勿分享給他人。
   是否符合規範由使用者自行負責。
-- **只能看到你本來就看得到的資料**：本工具只用你自己的 token 呼叫唯讀 API，
+- **只能看到你本來就看得到的資料**：本工具只用你自己的 token 呼叫 Moodle API，
   不會也無法繞過 Moodle 的任何權限。
+- **寫入動作由你負責**：開啟寫入功能後，Claude 透過本工具做的每個動作
+  （交作業、發文、回覆、標記已讀）都是以你的名義完成，和你自己操作沒有差別。
+  是否開啟、是否同意每一次的確認，都由你自己決定並承擔後果；
+  讓 AI 代寫或代交作業可能違反學校或課程的學術誠信規範，請自行確認。
 - **AI 的輸出可能出錯**：截止日、成績、公告等內容請以 Moodle 網站為準。
   因依賴本工具或 AI 的摘要而錯過截止日、誤解內容或造成其他後果，作者不負任何責任。
 - **資料會送到你使用的 AI 服務**：透過 Claude Code / Claude Desktop 使用時，
