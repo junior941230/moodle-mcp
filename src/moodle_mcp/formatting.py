@@ -176,10 +176,10 @@ def paginate_text(text: str, offset: int = 0, max_chars: int = DEFAULT_MAX_CHARS
         return f"（offset={int(offset)} 已超過總字數 {total}）"
     end = min(start + length, total)
     body = text[start:end]
-    end_display = max(start, end - 1) if body else start
     if start == 0 and end >= total:
         return f"{body}\n\n（共 {total} 字）"
-    parts = [body, f"（第 {start + 1}–{end_display} 字，共 {total} 字"]
+    # 走到這裡時 start < total，body 一定非空；顯示的範圍是 1-based、含頭含尾
+    parts = [body, f"\n\n（第 {start + 1}–{end} 字，共 {total} 字"]
     if end < total:
         parts.append(f"；用 offset={end} 繼續）")
     else:

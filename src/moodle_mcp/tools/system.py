@@ -7,21 +7,24 @@ from typing import Any
 from ..cache import TTL_ANNOUNCEMENTS, clear_all_caches
 from ..client import get_client
 from ..errors import tool_guard
+from ..files import clear_downloads
 from ..formatting import format_ts, html_to_plain, truncate_output
 
 
 @tool_guard
 async def clear_cache() -> str:
-    """清除本機的 API 快取與檔案對應表（強制下次重新向 Moodle 取得最新資料）。
+    """清除本機的 API 快取、檔案對應表與殘留的下載檔（強制下次重新向 Moodle 取得最新資料）。
 
     當使用者說「資料是舊的」「重新整理」「清除快取」時使用。
-    不會影響 Moodle 上的任何資料，也不會刪除已下載的檔案本體。
+    只動本機快取目錄，不會影響 Moodle 上的任何資料。
     """
     clear_all_caches()
+    removed = clear_downloads()
     return (
-        "✅ 已清除本機快取。\n\n"
-        "注意：已下載的檔案本體仍在快取目錄中；file_id 對應表已清空，"
-        "請重新用課程 / 作業工具取得新的 file_id。"
+        "✅ 已清除本機快取"
+        + (f"（另刪除 {removed} 個殘留的下載檔）" if removed else "")
+        + "。\n\n"
+        "file_id 對應表已清空，請重新用課程 / 作業工具取得新的 file_id。"
     )
 
 

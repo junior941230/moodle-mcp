@@ -49,9 +49,10 @@ cp .env.example .env        # Windows: copy .env.example .env
 
    ```bash
    uv run python scripts/get_token.py --from-launch
-   # 或直接帶參數
-   uv run python scripts/token_from_launch.py "moodlemobile://token=..."
    ```
+
+   出現提示後再貼上連結（輸入不會顯示）。不要把連結直接寫在指令參數裡，
+   否則 token 會留在 shell 歷史紀錄中。
 
    腳本會解出 token、用 `core_webservice_get_site_info` 驗證，成功才寫入 `.env`。
    連結約 15 分鐘內有效，過期就回到步驟 2 重新產生。

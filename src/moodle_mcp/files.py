@@ -341,6 +341,24 @@ async def get_file_text(file_id: str) -> tuple[dict[str, Any], str]:
         )
 
     path = await download_file(file_id, str(meta.get("url") or ""), filename)
-    text = await asyncio.to_thread(extract_text, path, filename, mimetype)
+    try:
+        text = await asyncio.to_thread(extract_text, path, filename, mimetype)
+    finally:
+        # 抽出的文字已快取；檔案本體之後不會再用到（每次都重新下載），
+        # 不留在磁碟上，避免教材 / 作業附件無限累積。
+        path.unlink(missing_ok=True)
     store.set(text_key, text, ttl=None)
     return meta, text
+
+
+def clear_downloads() -> int:
+    """刪除下載目錄中殘留的檔案（含中斷的 .part）；回傳刪除數量。"""
+    removed = 0
+    for entry in get_settings().downloads_dir.iterdir():
+        if entry.is_file():
+            try:
+                entry.unlink()
+                removed += 1
+            except OSError:
+                logger.debug("無法刪除下載檔：%s", entry.name, exc_info=True)
+    return removed
