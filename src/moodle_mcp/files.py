@@ -83,9 +83,22 @@ def make_file_id(url: str) -> str:
     return hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
 
 
+def attachment_url(attachment: dict[str, Any]) -> str:
+    """取出附件下載網址。
+
+    不同 Moodle WS 函式用不同欄位：多數用 ``fileurl``，但
+    ``mod_forum_get_discussion_posts`` 等新版 API 用 ``url``。
+    """
+    for key in ("fileurl", "url"):
+        value = attachment.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
 def register_attachment(attachment: dict[str, Any]) -> str | None:
     """把 Moodle 附件登記成 file_id；回傳 file_id。"""
-    url = attachment.get("fileurl") or ""
+    url = attachment_url(attachment)
     if not url:
         return None
     filename = str(attachment.get("filename") or "未命名檔案")

@@ -65,6 +65,23 @@ async def test_get_discussion(api):
 
 
 @pytest.mark.asyncio
+async def test_get_discussion_attachment_url_field(api):
+    """mod_forum_get_discussion_posts 的附件網址在 `url` 欄位而非 `fileurl`。"""
+    data = load_fixture("discussion_posts.json")
+    attachment = data["posts"][0]["attachments"][0]
+    attachment["url"] = attachment.pop("fileurl")
+    api.on("mod_forum_get_discussion_posts", data)
+    result = await get_discussion(501)
+
+    assert "pluginfile.php" not in result
+    match = re.search(r"file_id=([0-9a-f]{12})", result)
+    assert match
+    entry = lookup_file(match.group(1))
+    assert entry["filename"] == "review.pdf"
+    assert "/pluginfile.php/701/mod_forum/attachment/601/" in entry["url"]
+
+
+@pytest.mark.asyncio
 async def test_get_discussion_empty(api):
     api.on("mod_forum_get_discussion_posts", {"posts": []})
     assert "沒有貼文" in await get_discussion(123)
