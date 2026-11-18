@@ -1,12 +1,14 @@
-"""教材檔案讀取 tool（PDF / DOCX / PPTX / 文字 / HTML）。"""
+"""教材檔案讀取 tool（PDF / DOCX / PPTX / 文字 / HTML / 圖片）。"""
 
 from __future__ import annotations
 
 from typing import Any
 
+from mcp.server.fastmcp import Image
+
 from ..cache import lookup_file
 from ..errors import UnsupportedFileType, tool_guard
-from ..files import get_file_text
+from ..files import get_file_image, get_file_text, is_image
 from ..formatting import human_size, paginate_text, truncate_output
 
 
@@ -24,8 +26,10 @@ def _header(meta: dict[str, Any], file_id: str, total: int | None = None) -> str
 
 
 @tool_guard
-async def read_file(file_id: str, offset: int = 0, max_chars: int = 12000) -> str:
-    """讀取課程教材 / 作業附件的內容並轉成文字。
+async def read_file(
+    file_id: str, offset: int = 0, max_chars: int = 12000
+) -> str | list[Any]:
+    """讀取課程教材 / 作業附件的內容（文字檔轉成文字，圖片直接回傳圖片）。
 
     Args:
         file_id: 由 get_course_contents、get_assignment 或 get_discussion 產生的
@@ -35,8 +39,22 @@ async def read_file(file_id: str, offset: int = 0, max_chars: int = 12000) -> st
 
     Returns:
         檔案中繼資訊與抽取出的文字。PDF 會標示頁碼、PPTX 會標示投影片與備忘稿。
-        影片、壓縮檔、圖片等無法轉文字的檔案會回傳檔名、大小、類型與說明。
+        圖片（JPG / PNG / GIF / WebP 等）會直接以圖片回傳，可以看到內容。
+        影片、壓縮檔等無法讀取的檔案會回傳檔名、大小、類型與說明。
     """
+    known = lookup_file(str(file_id).strip())
+    if known and is_image(
+        str(known.get("filename") or ""), str(known.get("mimetype") or "")
+    ):
+        try:
+            meta, data, mime = await get_file_image(file_id)
+        except UnsupportedFileType as exc:
+            return _header(known, str(file_id).strip()) + f"（無法讀取圖片）\n\n{exc}"
+        return [
+            _header(meta, str(file_id).strip()) + "（圖片內容如下）",
+            Image(data=data, format=mime.split("/", 1)[1]),
+        ]
+
     try:
         meta, text = await get_file_text(file_id)
     except UnsupportedFileType as exc:
@@ -67,7 +85,8 @@ async def read_file(file_id: str, offset: int = 0, max_chars: int = 12000) -> st
 
 
 def register(mcp: Any) -> None:
-    mcp.add_tool(read_file)
+    # 回傳可能含圖片，不走 structured output（否則會被要求符合 str schema）
+    mcp.add_tool(read_file, structured_output=False)
 
 
 __all__ = ["read_file", "register"]
