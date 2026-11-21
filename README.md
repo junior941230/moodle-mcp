@@ -191,9 +191,11 @@ Token 由 server 從專案目錄的 `.env` 讀取，**不要**寫在上面的 co
 - `.pdf` → `pypdf`，附頁碼
 - `.docx` → `python-docx`（段落 + 表格）
 - `.pptx` → `python-pptx`（含備忘稿）
+- `.ppt`（PowerPoint 97-2003）→ `olefile` + 內建解析器（含文字方塊與備忘稿）
 - `.txt` / `.md` / `.csv` / 程式碼 → UTF-8，失敗退 big5 / cp950
 - `.html` → markdown
-- 影片 / 壓縮檔 / 圖片 → 只回傳檔名、大小、類型
+- 圖片（JPG / PNG / GIF / WebP / BMP / TIFF）→ 直接以圖片回傳（長邊超過 1568px 自動縮圖）
+- 影片 / 壓縮檔 → 只回傳檔名、大小、類型
 
 ---
 
@@ -275,7 +277,8 @@ src/moodle_mcp/
 ├── errors.py        # 例外、錯誤碼對應、redact、tool_guard
 ├── cache.py         # diskcache TTL + file_id 對應表
 ├── formatting.py    # HTML→markdown、時間、表格、截斷
-├── files.py         # 下載與 PDF/DOCX/PPTX 文字抽取
+├── files.py         # 下載與 PDF/DOCX/PPTX/PPT 文字抽取、圖片處理
+├── ppt_legacy.py    # 舊版 .ppt 二進位格式文字抽取
 └── tools/           # 每個 MCP tool 的實作
 ```
 

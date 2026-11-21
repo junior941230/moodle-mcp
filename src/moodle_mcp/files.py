@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
 import logging
 import re
 from pathlib import Path
@@ -68,6 +69,7 @@ _MIME_EXTENSIONS = {
     "application/pdf": ".pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "application/vnd.ms-powerpoint": ".ppt",
     "text/plain": ".txt",
     "text/markdown": ".md",
     "text/csv": ".csv",
@@ -77,15 +79,36 @@ _MIME_EXTENSIONS = {
 
 _UNSAFE_SUFFIX = re.compile(r"[^A-Za-z0-9.]")
 
+LEGACY_PPT_EXTENSIONS = {".ppt", ".pps", ".pot"}
+
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
+# LLM 端可直接吃的圖片格式；其他格式（BMP / TIFF）會轉成 PNG / JPEG
+_NATIVE_IMAGE_MIME = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+_MAX_IMAGE_EDGE = 1568  # 長邊超過就縮圖（Claude 建議上限）
+_MAX_IMAGE_BYTES = 3_500_000  # base64 後仍低於 5 MB
+
 
 def make_file_id(url: str) -> str:
     """由原始 URL 產生短 ID（sha1 前 12 碼）。"""
     return hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
 
 
+def attachment_url(attachment: dict[str, Any]) -> str:
+    """取出附件下載網址。
+
+    不同 Moodle WS 函式用不同欄位：多數用 ``fileurl``，但
+    ``mod_forum_get_discussion_posts`` 等新版 API 用 ``url``。
+    """
+    for key in ("fileurl", "url"):
+        value = attachment.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
 def register_attachment(attachment: dict[str, Any]) -> str | None:
     """把 Moodle 附件登記成 file_id；回傳 file_id。"""
-    url = attachment.get("fileurl") or ""
+    url = attachment_url(attachment)
     if not url:
         return None
     filename = str(attachment.get("filename") or "未命名檔案")
@@ -134,7 +157,7 @@ def normalize_download_url(url: str) -> str:
 def _looks_extractable(path: Path | str, mimetype: str) -> bool:
     suffix = Path(path).suffix.lower()
     mime = (mimetype or "").lower()
-    if suffix in {".pdf", ".docx", ".pptx", ".html", ".htm"}:
+    if suffix in {".pdf", ".docx", ".pptx", ".html", ".htm"} | LEGACY_PPT_EXTENSIONS:
         return True
     if suffix in TEXT_EXTENSIONS:
         return True
@@ -262,6 +285,15 @@ def _extract_pptx(path: Path) -> str:
     return "\n\n".join(parts)
 
 
+def _extract_ppt(path: Path) -> str:
+    from .ppt_legacy import PptFormatError, extract_ppt_text
+
+    try:
+        return extract_ppt_text(path)
+    except PptFormatError as exc:
+        raise UnsupportedFileType(str(exc)) from None
+
+
 def _read_text_file(path: Path) -> str:
     raw = path.read_bytes()
     for encoding in ("utf-8", "utf-8-sig", "big5", "cp950"):
@@ -289,6 +321,8 @@ def extract_text(path: Path, filename: str, mimetype: str = "") -> str:
         text = _extract_docx(path)
     elif suffix == ".pptx" or "presentationml" in mime:
         text = _extract_pptx(path)
+    elif suffix in LEGACY_PPT_EXTENSIONS or mime == "application/vnd.ms-powerpoint":
+        text = _extract_ppt(path)
     elif suffix in {".html", ".htm"} or mime in {"text/html", "application/xhtml+xml"}:
         text = _extract_html(path)
     elif suffix in TEXT_EXTENSIONS or mime.startswith("text/"):
@@ -304,8 +338,47 @@ def extract_text(path: Path, filename: str, mimetype: str = "") -> str:
     return text
 
 
-async def get_file_text(file_id: str) -> tuple[dict[str, Any], str]:
-    """回傳 (檔案資訊, 全文)；文字依 file_id + timemodified 快取。"""
+def is_image(filename: str, mimetype: str = "") -> bool:
+    suffix = Path(filename or "").suffix.lower()
+    mime = (mimetype or "").lower()
+    return suffix in IMAGE_EXTENSIONS or mime.startswith("image/")
+
+
+def prepare_image(path: Path) -> tuple[bytes, str]:
+    """回傳 (圖片位元組, MIME)；太大或格式不支援時縮圖 / 轉檔。同步函式。"""
+    from PIL import Image as PILImage
+    from PIL import UnidentifiedImageError
+
+    raw = path.read_bytes()
+    try:
+        with PILImage.open(path) as image:
+            mime = PILImage.MIME.get(image.format or "", "")
+            width, height = image.size
+            if (
+                mime in _NATIVE_IMAGE_MIME
+                and max(width, height) <= _MAX_IMAGE_EDGE
+                and len(raw) <= _MAX_IMAGE_BYTES
+            ):
+                return raw, mime
+
+            image.seek(0)  # 動畫 GIF 只取第一格
+            has_alpha = image.mode in {"RGBA", "LA", "PA"} or (
+                image.mode == "P" and "transparency" in image.info
+            )
+            converted = image.convert("RGBA" if has_alpha else "RGB")
+            converted.thumbnail((_MAX_IMAGE_EDGE, _MAX_IMAGE_EDGE))
+            buffer = io.BytesIO()
+            if has_alpha:
+                converted.save(buffer, format="PNG", optimize=True)
+                return buffer.getvalue(), "image/png"
+            converted.save(buffer, format="JPEG", quality=85, optimize=True)
+            return buffer.getvalue(), "image/jpeg"
+    except (UnidentifiedImageError, OSError) as exc:
+        raise UnsupportedFileType(f"無法解讀圖片：{exc}") from None
+
+
+def _resolve_file(file_id: str) -> tuple[str, dict[str, Any]]:
+    """驗證 file_id 並回傳 (正規化 file_id, 檔案資訊)。"""
     file_id = str(file_id or "").strip()
     if not re.fullmatch(r"[0-9a-f]{12}", file_id):
         raise NotFoundError(
@@ -316,17 +389,30 @@ async def get_file_text(file_id: str) -> tuple[dict[str, Any], str]:
         raise NotFoundError(
             "file_id 不存在或已失效，請先用課程內容 / 作業 / 討論工具取得新的 file_id"
         )
-
-    filename = str(meta.get("filename") or "未命名檔案")
-    mimetype = str(meta.get("mimetype") or "")
-    timemodified = int(meta.get("timemodified") or 0)
     settings = get_settings()
-
     if int(meta.get("filesize") or 0) > settings.max_file_bytes:
         raise FileTooLarge(
             f"檔案大小 {int(meta.get('filesize') or 0) / 1024 / 1024:.1f} MB "
             f"超過上限 {settings.moodle_max_file_mb:g} MB，拒絕下載"
         )
+    return file_id, meta
+
+
+async def get_file_image(file_id: str) -> tuple[dict[str, Any], bytes, str]:
+    """下載圖片附件，回傳 (檔案資訊, 圖片位元組, MIME)。"""
+    file_id, meta = _resolve_file(file_id)
+    filename = str(meta.get("filename") or "未命名檔案")
+    path = await download_file(file_id, str(meta.get("url") or ""), filename)
+    data, mime = await asyncio.to_thread(prepare_image, path)
+    return meta, data, mime
+
+
+async def get_file_text(file_id: str) -> tuple[dict[str, Any], str]:
+    """回傳 (檔案資訊, 全文)；文字依 file_id + timemodified 快取。"""
+    file_id, meta = _resolve_file(file_id)
+    filename = str(meta.get("filename") or "未命名檔案")
+    mimetype = str(meta.get("mimetype") or "")
+    timemodified = int(meta.get("timemodified") or 0)
 
     store = get_file_store()
     text_key = f"text:{file_id}:{timemodified}"
@@ -337,7 +423,7 @@ async def get_file_text(file_id: str) -> tuple[dict[str, Any], str]:
     if not _looks_extractable(filename, mimetype):
         raise UnsupportedFileType(
             f"「{filename}」（{mimetype or '未知類型'}）無法轉成文字。"
-            "這是影片、壓縮檔、圖片或投影片以外的二進位檔。"
+            "影片、壓縮檔等二進位檔無法讀取內容。"
         )
 
     path = await download_file(file_id, str(meta.get("url") or ""), filename)

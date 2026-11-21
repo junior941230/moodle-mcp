@@ -158,7 +158,11 @@ async def get_discussion(discussion_id: int) -> str:
     if not posts:
         return f"（discussion_id={discussion_id} 沒有貼文）"
 
-    posts.sort(key=lambda post: parse_int(post.get("created")))
+    def _post_time(post: dict[str, Any]) -> Any:
+        # 新版 API 用 timecreated，舊版用 created
+        return post.get("timecreated") or post.get("created")
+
+    posts.sort(key=lambda post: parse_int(_post_time(post)))
     first_subject = next(
         (
             html_to_plain(str(p.get("subject")))
@@ -171,7 +175,7 @@ async def get_discussion(discussion_id: int) -> str:
 
     for index, post in enumerate(posts, start=1):
         author = (post.get("author") or {}).get("fullname") or "（未知作者）"
-        lines.append(f"## {index}. {author}（{format_ts(post.get('created'))}）")
+        lines.append(f"## {index}. {author}（{format_ts(_post_time(post))}）")
         lines.append(f"- post_id：{post.get('id')}")
         lines.append("")
         message = html_to_markdown(post.get("message") or "")

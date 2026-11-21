@@ -222,9 +222,11 @@ ALLOWED_FUNCTIONS = {
   - `.pdf` → `pypdf`，每頁前加 `--- 第 N 頁 ---`
   - `.docx` → `python-docx`（段落 + 表格）
   - `.pptx` → `python-pptx`，每張投影片前加 `--- 投影片 N ---`，含備忘稿
+  - `.ppt`（97-2003 二進位）→ `olefile` 讀 OLE，自行解析 record（persist directory → SlideListWithText → 投影片 / 備忘稿），格式同 `.pptx`
   - `.txt` / `.md` / `.csv` / 程式碼 → 直接讀（UTF-8，失敗退 big5 / cp950）
   - `.html` → markdownify
-  - 其他（影片、壓縮檔、圖片）→ 回傳檔名、大小、類型，說明無法轉文字
+  - 圖片 → 以 MCP image content 回傳（過大時縮圖）
+  - 其他（影片、壓縮檔）→ 回傳檔名、大小、類型，說明無法轉文字
 - 抽取結果也快取（key = file_id + timemodified）
 - 輸出用 `offset` / `max_chars` 分頁，並標示總字數
 

@@ -242,3 +242,85 @@ async def test_read_file_unsupported_type(api):
     assert "movie.mp4" in result
     assert "video/mp4" in result
     assert "1.0 KB" in result
+
+
+def _image_bytes(size: tuple[int, int], fmt: str, mode: str = "RGB") -> bytes:
+    import io
+
+    from PIL import Image as PILImage
+
+    buffer = io.BytesIO()
+    PILImage.new(mode, size, (200, 30, 30)).save(buffer, format=fmt)
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_read_file_returns_image(api):
+    from mcp.server.fastmcp import Image
+
+    file_id = "aaaa11112222"
+    payload = _image_bytes((40, 30), "JPEG")
+    _register(
+        file_id,
+        "https://moodle.example.edu/pluginfile.php/1/mod_assign/introattachment/0/hw.jpg",
+        "hw.jpg",
+        size=len(payload),
+        mime="image/jpeg",
+    )
+    api.router.get(url__regex=r"https://moodle\.example\.edu/webservice/pluginfile\.php/.*").mock(
+        return_value=httpx.Response(200, content=payload)
+    )
+
+    result = await read_file(file_id)
+    assert isinstance(result, list)
+    assert "hw.jpg" in result[0]
+    image = result[1]
+    assert isinstance(image, Image)
+    content = image.to_image_content()
+    assert content.mimeType == "image/jpeg"
+    assert image.data == payload  # 小張 JPEG 原封不動
+
+
+@pytest.mark.asyncio
+async def test_read_file_downscales_large_image(api):
+    import io
+
+    from PIL import Image as PILImage
+
+    file_id = "bbbb11112222"
+    payload = _image_bytes((3000, 1000), "BMP")
+    _register(
+        file_id,
+        "https://moodle.example.edu/pluginfile.php/1/mod_assign/introattachment/0/big.bmp",
+        "big.bmp",
+        size=len(payload),
+        mime="image/bmp",
+    )
+    api.router.get(url__regex=r"https://moodle\.example\.edu/webservice/pluginfile\.php/.*").mock(
+        return_value=httpx.Response(200, content=payload)
+    )
+
+    result = await read_file(file_id)
+    image = result[1]
+    assert image.to_image_content().mimeType == "image/jpeg"
+    with PILImage.open(io.BytesIO(image.data)) as decoded:
+        assert max(decoded.size) == 1568
+
+
+@pytest.mark.asyncio
+async def test_read_file_corrupt_image(api):
+    file_id = "cccc11112222"
+    _register(
+        file_id,
+        "https://moodle.example.edu/pluginfile.php/1/broken.png",
+        "broken.png",
+        size=10,
+        mime="image/png",
+    )
+    api.router.get(url__regex=r"https://moodle\.example\.edu/webservice/pluginfile\.php/.*").mock(
+        return_value=httpx.Response(200, content=b"not an image")
+    )
+
+    result = await read_file(file_id)
+    assert isinstance(result, str)
+    assert "無法讀取圖片" in result

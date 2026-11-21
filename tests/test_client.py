@@ -202,3 +202,36 @@ async def test_peek_returns_none_for_unknown(api):
 def test_settings_token_not_in_repr():
     settings = get_settings()
     assert "test-token-123" not in repr(settings)
+
+
+def test_corrupt_cache_is_rebuilt(tmp_path):
+    from moodle_mcp.cache import TTLCache
+
+    directory = tmp_path / "api"
+    directory.mkdir()
+    (directory / "cache.db").write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
+
+    cache = TTLCache(directory)  # 不可丟例外
+    cache.set("k", "v", ttl=60)
+    assert cache.get("k") == "v"
+    assert list(tmp_path.glob("api.corrupt-*")), "壞掉的快取應該被移開保留"
+    cache.close()
+
+
+def test_corrupt_cache_falls_back_to_temp_when_rename_fails(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from moodle_mcp.cache import TTLCache
+
+    directory = tmp_path / "api"
+    directory.mkdir()
+    (directory / "cache.db").write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
+
+    def locked(self, target):
+        raise PermissionError("file in use")
+
+    monkeypatch.setattr(Path, "rename", locked)
+    cache = TTLCache(directory)
+    cache.set("k", "v", ttl=60)
+    assert cache.get("k") == "v"
+    cache.close()

@@ -10,7 +10,7 @@ from ..cache import TTL_COURSES
 from ..client import get_client
 from ..config import get_settings
 from ..errors import FunctionUnavailable, redact
-from ..files import register_attachment
+from ..files import attachment_url, register_attachment
 from ..formatting import human_size
 
 
@@ -105,7 +105,7 @@ def _is_pluginfile(url: str) -> bool:
 
 def course_module_file_line(item: dict[str, Any], *, indent: str = "") -> str:
     """課程內容中的檔案 / 連結 → 一行 markdown；同站檔案只顯示 file_id。"""
-    url = str(item.get("fileurl") or "")
+    url = attachment_url(item)
     filename = str(item.get("filename") or item.get("title") or "（未命名）")
     size = item.get("filesize")
 
