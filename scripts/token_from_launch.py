@@ -15,7 +15,7 @@
 
 用法：
     uv run python scripts/token_from_launch.py
-    uv run python scripts/token_from_launch.py "moodlemobile://token=...."
+    （執行後再貼上連結；輸入不會顯示，也不會留在 shell 歷史紀錄）
 
 安全：token 不會被印出（只顯示前後 4 碼），也不會出現在任何 log。
 """
@@ -133,6 +133,11 @@ def verify_token(url: str, token: str) -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
+def link_from_args(argv: list[str]) -> str:
+    """命令列上的連結；忽略 get_token.py 轉交過來的 --from-launch 旗標。"""
+    return " ".join(arg for arg in argv if arg != "--from-launch").strip()
+
+
 def main() -> int:
     print("=== 從 Moodle App launch 連結取出 token ===\n")
 
@@ -145,8 +150,14 @@ def main() -> int:
             print("已取消，未修改 .env。")
             return 0
 
-    raw = " ".join(sys.argv[1:]).strip()
-    if not raw:
+    raw = link_from_args(sys.argv[1:])
+    if raw:
+        print(
+            "警告：連結直接寫在指令參數裡，token 可能留在 shell 歷史紀錄 / 行程清單中。\n"
+            "建議下次不帶參數執行，等提示出現再貼上。",
+            file=sys.stderr,
+        )
+    else:
         print(
             "請貼上 launch 連結（moodlemobile://token=... 整串，或只要那段 base64）。\n"
             f"取得方式：登入 {url} 後開啟\n"

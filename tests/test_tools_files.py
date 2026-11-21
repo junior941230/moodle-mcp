@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from moodle_mcp.cache import register_file_id, strip_url_token
-from moodle_mcp.config import reload_settings
+from moodle_mcp.config import get_settings, reload_settings
 from moodle_mcp.errors import UnsupportedFileType
 from moodle_mcp.files import extract_text, normalize_download_url
 from moodle_mcp.tools.files import read_file
@@ -169,6 +169,8 @@ async def test_read_file_txt(api):
     assert "test-token-123" not in result
     # 下載時確實帶了 token
     assert "token=test-token-123" in seen["url"]
+    # 抽完文字後不留下檔案本體
+    assert list(get_settings().downloads_dir.iterdir()) == []
 
 
 @pytest.mark.asyncio

@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlencode
 
 import httpx
 
 from .cache import TTL_COURSES, get_cache, make_key
-from .config import Settings, get_settings
+from .config import WRITE_FEATURES, Settings, get_settings, write_env_name
 from .errors import (
     FunctionNotAllowed,
     FunctionUnavailable,
@@ -47,6 +48,19 @@ ALLOWED_FUNCTIONS = frozenset(
         "message_popup_get_popup_notifications",
     }
 )
+
+# 寫入白名單：wsfunction -> 需要開啟的寫入功能（config.WRITE_FEATURES）。
+# 只能透過 client.write() 呼叫；call() 一律拒絕。
+WRITE_FUNCTIONS: dict[str, str] = {
+    "core_message_mark_notification_read": "mark_read",
+    "core_message_mark_all_notifications_as_read": "mark_read",
+    "mod_assign_save_submission": "save_submission",
+    "mod_assign_submit_for_grading": "submit_for_grading",
+    "mod_forum_add_discussion_post": "forum_reply",
+    "mod_forum_add_discussion": "forum_post",
+}
+
+UPLOAD_PATH = "/webservice/upload.php"
 
 MAX_ATTEMPTS = 4  # 首次 + 3 次重試
 RETRY_DELAYS = (0.5, 1.0, 2.0)
@@ -184,6 +198,79 @@ class MoodleClient:
             cache.set(key, data, ttl=ttl if ttl is not None else self.settings.moodle_cache_ttl)
         return data
 
+    def _require_write(self, feature: str, what: str) -> None:
+        if not self.settings.write_enabled(feature):
+            raise FunctionNotAllowed(
+                f"寫入功能「{WRITE_FEATURES.get(feature, feature)}」未開啟，拒絕呼叫 {what}。"
+                f"需要時請在 .env 設定 {write_env_name(feature)}=true 後重新啟動 server。"
+            )
+
+    async def write(self, function: str, **params: Any) -> Any:
+        """呼叫寫入類 wsfunction。
+
+        - 只允許 WRITE_FUNCTIONS 內、且對應功能已在設定中開啟的函式
+        - 不讀寫快取、**不重試**（避免網路錯誤時重複發文 / 重複繳交）
+        - 成功後清掉 API 快取，避免之後讀到舊的狀態
+        """
+        feature = WRITE_FUNCTIONS.get(function)
+        if feature is None:
+            raise FunctionNotAllowed(f"拒絕呼叫非白名單的寫入函式：{function}")
+        self._require_write(feature, function)
+        if self._function_names and function not in self._function_names:
+            raise FunctionUnavailable(
+                f"本站未開放此功能：{function}", errorcode="servicenotavailable"
+            )
+        data = await self._post(function, params, retry=False)
+        get_cache().clear()
+        return data
+
+    async def upload_draft_files(self, paths: list[Path]) -> int:
+        """把本機檔案上傳到使用者的草稿區，回傳 draft itemid（供 save_submission 使用）。
+
+        呼叫端必須先用 write_guard.resolve_upload_path() 檢查過路徑。不重試。
+        """
+        self._require_write("save_submission", "檔案上傳")
+        if not paths:
+            raise MoodleError("沒有要上傳的檔案")
+        token = self.settings.require_token()
+        files = [
+            (f"file_{index}", (path.name, path.read_bytes(), "application/octet-stream"))
+            for index, path in enumerate(paths, start=1)
+        ]
+        try:
+            async with self._semaphore:
+                response = await self._http.post(
+                    UPLOAD_PATH,
+                    data={"token": token, "filearea": "draft", "itemid": "0"},
+                    files=files,
+                    headers={"Accept": "application/json"},
+                )
+        except httpx.TransportError as exc:
+            raise MoodleError(f"上傳檔案失敗（網路錯誤）：{redact(str(exc))}") from None
+
+        if response.status_code >= 400:
+            raise MoodleError(f"上傳檔案失敗（HTTP {response.status_code}）")
+        try:
+            data = response.json()
+        except ValueError:
+            raise MoodleError(
+                f"上傳檔案失敗：回應不是 JSON：{response.text[:200]}"
+            ) from None
+        if isinstance(data, dict):
+            # upload.php 的錯誤格式：{"error": "...", "errorcode": "..."}
+            if data.get("errorcode") == "invalidtoken":
+                raise error_from_payload(data)
+            raise MoodleError(
+                f"上傳檔案失敗：{data.get('error') or data.get('message') or data}",
+                errorcode=str(data.get("errorcode") or "") or None,
+            )
+        if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+            raise MoodleError("上傳檔案失敗：回應格式異常")
+        try:
+            return int(data[0]["itemid"])
+        except (KeyError, TypeError, ValueError):
+            raise MoodleError("上傳檔案失敗：回應中沒有 itemid") from None
+
     def peek(self, function: str, **params: Any) -> Any | None:
         """只讀快取，不發 HTTP（search_course 用）。"""
         if function not in ALLOWED_FUNCTIONS:
@@ -192,8 +279,11 @@ class MoodleClient:
 
     # -- 內部 -------------------------------------------------------------
 
-    async def _post(self, function: str, params: Mapping[str, Any]) -> Any:
+    async def _post(
+        self, function: str, params: Mapping[str, Any], *, retry: bool = True
+    ) -> Any:
         token = self.settings.require_token()
+        max_attempts = MAX_ATTEMPTS if retry else 1
         form: list[tuple[str, str]] = [
             ("wstoken", token),
             ("wsfunction", function),
@@ -204,7 +294,7 @@ class MoodleClient:
         body = urlencode(form)
 
         last_error: Exception | None = None
-        for attempt in range(MAX_ATTEMPTS):
+        for attempt in range(max_attempts):
             try:
                 async with self._semaphore:
                     response = await self._http.post(
@@ -221,10 +311,10 @@ class MoodleClient:
                     "%s 網路錯誤（第 %d/%d 次）：%s",
                     function,
                     attempt + 1,
-                    MAX_ATTEMPTS,
+                    max_attempts,
                     redact(str(exc)),
                 )
-                if attempt < len(RETRY_DELAYS):
+                if attempt + 1 < max_attempts:
                     await _async_sleep(RETRY_DELAYS[attempt])
                     continue
                 break
@@ -239,7 +329,7 @@ class MoodleClient:
                     response.status_code,
                     attempt + 1,
                 )
-                if attempt < len(RETRY_DELAYS):
+                if attempt + 1 < max_attempts:
                     await _async_sleep(RETRY_DELAYS[attempt])
                     continue
                 break
@@ -263,8 +353,13 @@ class MoodleClient:
                 raise error_from_payload(data)
             return data
 
+        if not retry:
+            raise MoodleError(
+                f"連線 Moodle 失敗（{function}）：{redact(str(last_error))}。"
+                "寫入動作不會自動重試；它可能已經生效，請先到 Moodle 確認再決定是否重做。"
+            )
         raise MoodleError(
-            f"連線 Moodle 失敗（{function}），已重試 {MAX_ATTEMPTS - 1} 次："
+            f"連線 Moodle 失敗（{function}），已重試 {max_attempts - 1} 次："
             f"{redact(str(last_error))}"
         )
 

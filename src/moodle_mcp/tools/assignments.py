@@ -59,12 +59,16 @@ async def _fetch_assignments(course_ids: list[int]) -> list[dict[str, Any]]:
     return entries
 
 
-async def _submission_status(assign_id: int) -> dict[str, Any] | None:
+async def _submission_status(
+    assign_id: int, *, fresh: bool = False
+) -> dict[str, Any] | None:
+    """fresh=True 時不讀快取（寫入前一定要看 Moodle 上最新的狀態）。"""
     try:
         data = await get_client().call(
             "mod_assign_get_submission_status",
             assignid=int(assign_id),
             ttl=TTL_SUBMISSION,
+            use_cache=not fresh,
         )
         return data if isinstance(data, dict) else None
     except AuthError:

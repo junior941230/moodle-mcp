@@ -102,21 +102,31 @@ def error_from_payload(payload: dict[str, Any]) -> MoodleError:
 
 
 class RedactingFilter(logging.Filter):
-    """logging filter：任何 log record 都先遮罩 token。"""
+    """logging filter：任何 log record 都先遮罩 token。
+
+    直接遮罩「組好的完整訊息」，而不是只處理字串參數；
+    否則以例外物件當參數（`logger.error("%s", exc)`）或附帶的 traceback
+    都會繞過遮罩。
+    """
+
+    _exc_formatter = logging.Formatter()
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.msg, str):
-            record.msg = redact(record.msg)
-        if record.args:
-            if isinstance(record.args, tuple):
-                record.args = tuple(
-                    redact(a) if isinstance(a, str) else a for a in record.args
-                )
-            elif isinstance(record.args, dict):
-                record.args = {
-                    k: (redact(v) if isinstance(v, str) else v)
-                    for k, v in record.args.items()
-                }
+        try:
+            message = record.getMessage()
+        except Exception:  # 格式字串與參數不符時，保底用原始 msg
+            message = str(record.msg)
+        record.msg = redact(message)
+        record.args = None
+
+        # Formatter 只在 exc_text 為空時才自行格式化 traceback，
+        # 所以先在這裡產生並遮罩，Formatter 就會直接使用遮罩後的版本。
+        if record.exc_info and not record.exc_text:
+            record.exc_text = self._exc_formatter.formatException(record.exc_info)
+        if record.exc_text:
+            record.exc_text = redact(record.exc_text)
+        if record.stack_info:
+            record.stack_info = redact(record.stack_info)
         return True
 
 
