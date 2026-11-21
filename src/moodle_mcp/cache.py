@@ -5,9 +5,12 @@
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import logging
+import sqlite3
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -36,8 +39,7 @@ class TTLCache:
     """diskcache 的薄包裝；值可以是任意可 pickle 的 Python 物件。"""
 
     def __init__(self, directory: str | Path) -> None:
-        Path(directory).mkdir(parents=True, exist_ok=True)
-        self._cache = diskcache.Cache(str(directory))
+        self._cache = _open_cache(Path(directory))
 
     def get(self, key: str) -> Any | None:
         try:
@@ -70,6 +72,34 @@ class TTLCache:
             self._cache.close()
         except Exception:
             pass
+
+
+def _open_cache(directory: Path) -> diskcache.Cache:
+    """開啟 diskcache；SQLite 檔損壞時自動重建，絕不讓快取問題弄壞整個 server。
+
+    多個 MCP process 共用同一個快取目錄，行程被強制結束時 SQLite 可能損壞
+    （database disk image is malformed）。快取內容隨時可以重抓，所以：
+    1. 把壞掉的目錄改名成 ``<name>.corrupt-<時間>`` 後重建；
+    2. 改名失敗（Windows 上別的 process 還開著檔案）就改用暫存目錄。
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    try:
+        return diskcache.Cache(str(directory))
+    except sqlite3.DatabaseError as exc:
+        logger.warning("快取 %s 已損壞（%s），重建中", directory, str(exc))
+    # diskcache 開啟失敗時不會關閉 SQLite 連線；Windows 上要先釋放才能改名
+    gc.collect()
+
+    backup = directory.with_name(f"{directory.name}.corrupt-{int(time.time())}")
+    try:
+        directory.rename(backup)
+        directory.mkdir(parents=True, exist_ok=True)
+        cache = diskcache.Cache(str(directory))
+        logger.warning("已重建快取；損壞的檔案移到 %s", backup)
+        return cache
+    except (OSError, sqlite3.DatabaseError) as exc:
+        logger.warning("無法重建 %s（%s），本次改用暫存快取", directory, exc)
+        return diskcache.Cache()  # 暫存目錄
 
 
 def make_key(function: str, params: dict[str, Any]) -> str:
